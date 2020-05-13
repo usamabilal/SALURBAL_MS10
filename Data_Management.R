@@ -24,9 +24,9 @@ correction<-correction %>%
 
 # get population and mortality
 country_list<-c("AR", "BR", "CL", "CO", "CR", "GT", "MX", "PA", "PE", "SV")
-mortality_dir<-"../../SALURBAL Quick Analyses/Mortality Aug 2019/DTH/All Cause/"
+mortality_dir<-"../SALURBAL_DATA/Mortality Data/DTH/All Cause/"
 mortality_files<-list.files(mortality_dir, pattern="L1")
-pop_dir<-"../../SALURBAL Quick Analyses/Population Apr 2020/L1AD/Age Category/"
+pop_dir<-"../SALURBAL_DATA/Population Data/L1AD/Age Category/"
 pop_files<-list.files(pop_dir, pattern="L1")
 #country<-"CR"
 # load country by country
@@ -36,9 +36,9 @@ dta_corrected<-map_dfr(country_list, function(country){
   mortality<-fread(paste0(mortality_dir, file),stringsAsFactors = F)
   file<-pop_files[grepl(country, pop_files)]
   population<-fread(paste0(pop_dir, file),stringsAsFactors = F)
-  # temp
+  # Get single-age population for Costa Rica to get 0-1 and 1-4
   if (country=="CR"){
-    population<-fread("../../SALURBAL Quick Analyses/Population Apr 2020/L1AD/Single Age/PRJSCR_L1AD_201905014.csv")
+    population<-fread("../SALURBAL_DATA/Population Data/L1AD/Single Age/PRJSCR_L1AD_201905014.csv")
   }
   avail_years<-unique(mortality$YEAR)
   avail_years<-avail_years[avail_years%in%unique(population$YEAR)]
@@ -145,43 +145,20 @@ pop_l1<-left_join(pop_l1, l1s %>% select(SALID1, iso2))
 summary(pop_l1)
 
 # BEC variables
-bec<-read.csv("../../SALURBAL Quick Analyses/BEC Data/BEC_L1AD_20191031.csv", stringsAsFactors = F)
+bec<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1AD_20191031.csv", stringsAsFactors = F)
 bec$total_transport<-rowSums(bec[,colnames(bec)[grepl("BECPR", colnames(bec))]])
 bec$total_transport_yn<-as.numeric(bec$total_transport>=1)
 bec<-bec[,c("SALID1", colnames(bec)[grepl("BEC", colnames(bec))],"total_transport", "total_transport_yn")]
-becux<-read.csv("../../SALURBAL Quick Analyses/BEC Data/BEC_L1UX_20191031.csv", stringsAsFactors = F)
+becux<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1UX_20191031.csv", stringsAsFactors = F)
 becux<-becux[,c("SALID1", colnames(becux)[grepl("BEC", colnames(becux))])]
 becux<-becux[,!grepl("GASPRICE", colnames(becux))]
 bec<-full_join(bec, becux)
 head(bec)
 
-# GDP
-gdp<-read_excel("Other_Data/gdp/pwt91.xlsx", sheet="Data")
-gdp<-gdp %>% mutate(gdp_pc=rgdpe/pop, year=year) %>% filter(!is.na(gdp_pc)) %>% 
-  mutate(iso2=case_when(country=="Argentina"~"AR",
-                        country=="Brazil"~"BR",
-                        country=="Chile"~"CL",
-                        country=="Colombia"~"CO",
-                        country=="Costa Rica"~"CR",
-                        country=="Guatemala"~"GT",
-                        country=="Peru"~"PE",
-                        country=="Mexico"~"MX",
-                        country=="Panama"~"PA",
-                        country=="El Salvador"~"SV",
-                        country=="Nicaragua"~"NI")) %>% 
-  select(iso2, year, gdp_pc) %>% 
-  filter(!is.na(iso2))
-# taking the same years as above, and averaging
-gdp<-gdp %>% right_join(years) %>% 
-  filter(year>=y1, year<=y2)
-table(gdp$iso2, gdp$year)
-gdp<-gdp %>% group_by(iso2) %>% 
-  summarise(gdp_pc=mean(gdp_pc)) %>% 
-  mutate(gdp_hi=as.numeric(gdp_pc>median(gdp_pc)))
 
 ## SEC variables
-sec<-fread("../../SALURBAL Quick Analyses/SEC Data/SEC_Census_L1AD_20190618.csv") %>% 
-  rename(SALID1=Salid1) %>% filter(YEAR!=2017)
+sec<-fread("../SALURBAL_DATA/SEC Data/SEC_Census_L1AD_03162020.csv") %>% 
+  filter(YEAR!=2017)
 # calculate SEI
 sec<-sec %>% ungroup() %>% 
   mutate(educationsd=scale(CNSMINPR_L1AD, scale=T, center=T),
@@ -191,8 +168,7 @@ sec<-sec %>% ungroup() %>%
   rowwise() %>% 
   mutate(sei=mean(c(educationsd, watersd, sewagesd, overcrowdingsd)))
 
-all_exposure<-full_join(pop_l1, gdp) %>% 
-  full_join(sec) %>% 
+all_exposure<-full_join(pop_l1, sec) %>% 
   full_join(bec) %>% 
   filter(!iso2%in%c("GT", "NI"))
 summary(all_exposure)
