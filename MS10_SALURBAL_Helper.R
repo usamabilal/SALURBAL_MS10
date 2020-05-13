@@ -1,4 +1,5 @@
 # helper functions
+
 # harmonic mean
 hmean<-function(a){
   1/mean(1/a)  
@@ -32,24 +33,27 @@ gompertz_approximation<-function(temp, max_original=80, min=45, max=90, just5age
            r2=r2) %>% 
     select(age, final_rate, r2)
 }
-# ggplot functions
+
+# ggplot functions (thanks stackoverflow...)
+# https://stackoverflow.com/questions/14255533/pretty-ticks-for-log-normal-scale-using-ggplot2-dynamic-not-manual
 base_breaks <- function(n = 10){
   function(x) {
     axisTicks(log10(range(x, na.rm = TRUE)), log = TRUE, n = n)
   }
 }
+# https://stackoverflow.com/questions/8197559/emulate-ggplot2-default-color-palette
 gg_color_hue <- function(n, alpha=1) {
   hues = seq(15, 375, length = n + 1)
   t<-hcl(h = hues, l = 65, c = 100)[1:n]
   adjustcolor(t, alpha)
 }
+# unclear where i got this from
 get_legend<-function(plot){
   grobs<-ggplotGrob(plot)$grobs
   legend <- grobs[[which(sapply(grobs, function(x) x$name) == "guide-box")]]  
   return(legend)
 }
-
-# get ICC from an lme4 model
+# get ICC from an 2-level lme4 model
 ICC_lmer <- function(out) {
   varests <- as.data.frame(VarCorr(out))
   varests<-varests[,"vcov"]
