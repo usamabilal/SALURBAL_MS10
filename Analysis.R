@@ -65,28 +65,6 @@ table1<-all_exposure %>% group_by(pop_group) %>%
   select(1, '0', 2:6)
 table1
 fwrite(table1, "results/ExtendedData9.csv")
-# bubble chart with sizes by country
-sizes<-as.data.frame(table(all_exposure$iso2, all_exposure$pop_group))
-colnames(sizes)<-c("iso2", "pop", "count")
-ggplot(data=sizes[sizes$count>0,], aes(x = iso2, y = pop, 
-                                           size = count, label = count)) +
-  #geom_point(shape = 21, fill = "white") +
-  geom_text(aes(size=count), fontface="bold") +
-  scale_size(range = c(3, 10), guide = F) +
-  scale_y_discrete(labels=c("100-250k","250-500k","500k-1M","1-5M",">5M"))+
-  labs(x="", 
-       y="",
-       title="Population of Cities by Country")+
-  theme_classic()+
-  theme(#panel.grid.major = element_line(linetype = 2, color = "black"),
-    axis.text.x=element_text(size=20, color="black"),
-    axis.text.y=element_text(size=14, color="black"),
-    plot.title=element_text(size=20, color="black", face="bold"),
-    axis.title.y=element_text(size=14, color="black", face="bold"),
-    axis.line=element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid=element_blank())
-ggsave("results/FigureS3.pdf", width=10, height=7.5)
 
 # median LE in long format ofr some of the descriptives
 ale_median<-ale %>% group_by(SALID1, sex, age) %>% 
@@ -425,64 +403,6 @@ p<-lapply(seq_along(vars_cont), function(i){
 })
 pmortality<-arrangeGrob(grobs=p[1:9], ncol=3)
 ggsave("results/ExtendedData8.pdf",pmortality, width=20, height=20/1.6, units="in", scale=1.5, limitsize = F)
-i<-1
-p<-lapply(seq_along(vars_cont), function(i){
-  print(i)
-  var<-vars_cont[[i]]
-  temp<-all_exposure
-  if (var=="pop_baseline"){
-    temp$pop_baseline<-temp$pop_baseline*1000000
-  }
-  title<-paste0(plottitles[[i]])
-  xlabels<-c(paste0("Lower GDP\n(", temp %>% filter(gdp_hi==0) %>% pull(iso2) %>% unique %>% paste(collapse =", "),")"),
-             paste0("Higher GDP\n(", temp %>% filter(gdp_hi==1) %>% pull(iso2) %>% unique %>% paste(collapse =", "),")"))
-  temp$gdp_hi<-as.factor(temp$gdp_hi  )
-  p<-ggplot(temp, aes_string(x=("gdp_hi"), y=var, group="gdp_hi")) +
-    geom_boxplot(aes(group=as.factor(gdp_hi)), fill=NA, outlier.color = NA, width=0.5)+
-    geom_jitter(aes(fill=as.factor(gdp_hi)), width=0.1, height=0, pch=21, color="black") +
-    guides(fill=F, size=F, alpha=F)+
-    xlab("") + ylab(xtitles[[i]]) +
-    # scale_y_continuous(labels=percent_format(accuracy=1), limits=c(0,0.71),
-    #                    breaks=seq(0, 0.7, by=0.1))+
-    scale_x_discrete(labels=xlabels)+
-    #scale_fill_manual(values=c(cols, "black"))+
-    scale_alpha_manual(values=c(0.5, 0.2))+
-    ggtitle(title)+
-    theme_classic() +
-    theme(legend.position = "bottom",
-          legend.key.width = unit(50, "points"),
-          axis.text.x=element_text(size=13, face="bold",color="black"),
-          axis.text.y=element_text(size=13, face="bold",color="black"),
-          axis.title.y=element_text(size=16, face="bold",color="black"),
-          plot.title=element_text(face="bold", size=16))
-  if (var=="pop_baseline"){
-    p<-p+
-      scale_y_log10(breaks=c(10^5, 2.5*10^5, 5*10^5, 
-                             10^6, 2.5*10^6, 5*10^6,
-                             10^7, 2.5*10^7),
-                    labels=c("100K", "250K", "500K",
-                             "1M", "2.5M", "5M",
-                             "10M", "25M")
-      )+
-      annotation_logticks(sides="l")
-  }
-  p
-})
-pmortality<-arrangeGrob(grobs=p[1:9], ncol=3)
-ggsave("results/FigureS2.pdf",pmortality, width=20, height=20/1.6, units="in", scale=1.5, limitsize = F)
-# correlation table
-vars_cont<-c(vars_cont, "sei")
-cors<-round(cor(all_exposure %>% ungroup() %>% select(vars_cont) %>% 
-                  mutate(pop_baseline=log10(pop_baseline)), use="pairwise.complete.obs", method="pearson"), digits=2)
-for (i in 1:10){
-  for (j in 1:10){
-    cors[i,j]<-format(cors[i,j], digits=2, nsmall=2)
-    if (i<j) cors[i,j]<-""
-    if (i==j) cors[i,j]<-1
-  }
-}
-cors
-write.csv(cors, file="results/TableS3.csv")
 
 
 # outcome models
@@ -607,7 +527,7 @@ results_multiv_table<-results_multiv %>%
   select(var, sds,multiM, multiF)
 
 results_univ_table
-write.csv(results_univ_table, "results/Table2_univariate.csv")
+write.csv(results_univ_table, "results/Table1_univariate.csv")
 results_multiv_table
 write.csv(results_multiv_table, "results/Table2_multiv.csv")
 
