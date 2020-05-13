@@ -297,12 +297,12 @@ load("analytic files/MS10_exposure_data.RData")
 load("analytic files/l1s.rdata")
 load("analytic files/undercounting_correction_bysex.rdata")
 correction<-correction %>% 
-  filter(!grepl("hmean", type)) %>% 
   mutate(ages=case_when(
     grepl("ages_hill", type) ~ "ages_hill",
     grepl("ages_murray", type) ~ "ages_murray",
     grepl("ages_auto", type) ~ "ages_auto"
   )) %>% 
+  # remove the main method (already used)
   filter(!grepl("ages_auto", type)) %>% 
   group_by(SALID1, ages, sex) %>% 
   summarise(phi2=hmean(ucnt),

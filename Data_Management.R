@@ -6,7 +6,6 @@ library(tidyverse)
 source("MS10_SALURBAL_Helper.R")
 load("analytic files/undercounting_correction_bysex.rdata")
 correction<-correction %>% 
-  filter(!grepl("hmean", type)) %>% 
   filter(grepl("ages_auto", type)) %>% 
   group_by(SALID1, sex) %>% 
   summarise(phi2=hmean(ucnt),
