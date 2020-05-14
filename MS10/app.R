@@ -1,3 +1,4 @@
+library(shiny)
 library(tidyverse)
 library(DT)
 library(leaflet)
@@ -5,15 +6,8 @@ library(htmltools)
 library(plotly)
 library(sf)
 load("data.rdata")
-shp = st_read('SALURBAL_L1AD_11_30_18/SALURBAL_L1AD_11_30_18.shp')
-shp <- st_transform(shp, "+init=epsg:4326")
-input<-list()
-input$age<-input$age2<-input$age3<-"birth"
-input$sex<-input$sex2<-input$sex3<-"men"
-input$country4<-"MX"
-input$country2<-"MX"
-input$country5<-"MX"
-# Define UI for application that draws a histogram
+load("l1ad_shp.rdata")
+shp<-inner_join(shp, dta)
 ui <- fluidPage(
     navbarPage("Life Expectancy in Latin American Cities",
                tabPanel("Introduction",
@@ -24,7 +18,10 @@ ui <- fluidPage(
                         tags$ol(tags$li(strong("Distribution: "), "shows a boxplot with the distribution of life expectancy at different ages and sexes for all cities"), 
                                 tags$li(strong("Uncertainty: "), "shows a linerange plot with the distribution of life expectancies at different ages and sexes for all cities [or restricted to a specific country] and the corresponding 95% Credible Intervals"),
                                 tags$li(strong("Table: "), "shows a data table with the life expectancies at different ages and sexes for all cities [or restricted to a specific country] and the corresponding 95% Credible Intervals"),
-                                tags$li(strong("Map: "), "maps, for a specific country, the life expectancies at different ages and sexes"))),
+                                tags$li(strong("Map: "), "maps, for a specific country, the life expectancies at different ages and sexes")),
+                        p("Code for the app and analysis is available here: "),
+                        a(href="https://github.com/usamabilal/SALURBAL_MS10",
+                          "https://github.com/usamabilal/SALURBAL_MS10",  target="_blank")),
                tabPanel("Distribution",
                         sidebarLayout(
                             sidebarPanel(
@@ -79,23 +76,6 @@ ui <- fluidPage(
                             )
                         )
                ),
-               # tabPanel("Map",
-               #          sidebarLayout(
-               #              sidebarPanel(
-               #                  radioButtons("age3", "Life Expectancy at Age:", 
-               #                               choices=c("birth", "20", "40", "60"), 
-               #                               selected="birth"),
-               #                  radioButtons("sex3", "Sex:", 
-               #                               choices=c("men", "women"), 
-               #                               selected="women"),
-               #                  p("Be patient...map takes some time to load")
-               #              ),
-               #              mainPanel(
-               #                  #leafletOutput("plot3")
-               #                  p("TEMPORARILY DISABLED UNTIL WE HAVE A SERVER")
-               #              )
-               #          )
-               # ),
                tabPanel("Map",
                         sidebarLayout(
                             sidebarPanel(
@@ -106,10 +86,10 @@ ui <- fluidPage(
                                              choices=c("men", "women"), 
                                              selected="women"),
                                 selectInput("country4", label="Country", 
-                                            choices=c("AR", "BR", "CL", "CO", "CR/PA/SV",
+                                            choices=c("All","AR", "BR", "CL", "CO", "CR/PA/SV",
                                                       "MX", "PE"), 
                                             selected = "AR"),
-                                p("Be patient...map takes some time to load")
+                                p("Note: Be patient...map takes some time to load. You can interact with it (click, zoom, pan, etc.)")
                             ),
                             mainPanel(
                                 leafletOutput("plot4")
@@ -263,17 +243,17 @@ server <- function(input, output) {
     output$plot4 <- renderLeaflet({
         tage<-as.numeric(ifelse(input$age4=='birth', 0, input$age4))
         tsex<-ifelse(input$sex4=="men", "M", "F")
-        temp<-dta %>% filter(age==tage&sex==tsex)
-        shp<-inner_join(shp, temp)
+        shp2<-shp %>% filter(age==tage&sex==tsex)
         if (input$country4=="CR/PA/SV"){
-            shp2<-shp %>% filter(iso2%in%c("CR", "PA", "SV"))
+            shp2<-shp2 %>% filter(iso2%in%c("CR", "PA", "SV"))
+        } else if (input$country4=="All"){
+            shp2<-shp2
         } else {
-            shp2<-shp %>% filter(iso2==input$country4)    
+            shp2<-shp2 %>% filter(iso2==input$country4)    
         }
         gradient_pal =  colorNumeric(palette="RdYlGn",  # colors we want to use
                                      domain=shp2$le, reverse = F) #supply range of possible values 
         
-        geo=as.numeric(colMeans(st_coordinates(st_centroid(shp2))))
         shp2 %>% 
             mutate(tag = str_c("<b>",city_link,"</b>","<br/>",   #Create label
                                "<i>LE: ",paste0(round(le, digits=1), " (", round(lci, digits=1), ";", round(uci, digits=1), ")"),"</i>") %>%
@@ -282,11 +262,8 @@ server <- function(input, output) {
                                             minZoom = 1,  #set zoom limits
                                             maxZoom = 10)) %>% 
             addTiles() %>% 
-            setView(lng=geo[1],
-                    lat=geo[2],
-                    zoom = 4) %>% 
             addPolygons(weight = 3, # change boundary pixel to 1 (default is 5)
-                        fillOpacity = 0.7,
+                        fillOpacity = 1,
                         color= ~gradient_pal(le),
                         label = ~tag,
                         highlight = highlightOptions(weight=3,

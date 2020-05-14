@@ -182,3 +182,10 @@ summary(all_exposure[!complete.cases(all_exposure),colSums(is.na(all_exposure))>
 
 save(all_exposure,years, file="analytic files/MS10_exposure_data.RData")
 
+# Save SHP for the App
+rm(list=ls())
+library(sf)
+library(rmapshaper)
+shp = st_read('../SALURBAL_DATA/SHPs/SALURBAL_L1AD_11_30_18/SALURBAL_L1AD_11_30_18.shp')
+shp <- st_transform(shp, "+init=epsg:4326") %>% ms_simplify()
+save(shp, file="MS10/l1ad_shp.rdata")
