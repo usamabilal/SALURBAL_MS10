@@ -116,7 +116,7 @@ correction<-both %>% group_by(iso2, sex) %>%
   group_modify(~{
     emax<-.x %>% pull(emax) %>% unique
     .x<-.x %>% select(-emax)
-    ddm_murray<-ddm(.x, eOpen=emax, exact.ages = ages_murray, deaths.summed = F)
+    ddm_murray<-ddm(.x, eOpen=emax, exact.ages = ages_murray)
     ddm_hill<-ddm(.x, eOpen=emax, exact.ages = ages_hill)
     ddm_auto<-ddm(.x, eOpen=emax)
     bind_rows(ddm_murray %>% mutate(ages="murray"), 
