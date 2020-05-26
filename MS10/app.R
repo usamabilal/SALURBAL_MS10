@@ -153,7 +153,7 @@ server <- function(input, output) {
         range<-c(floor(range[1]/5)*5,
                  ceiling(range[2]/5)*5)
         
-        ggplotly(ggplot(temp, aes(x=id, y=le, group=city_link)) +
+        plot<-ggplot(temp, aes(x=id, y=le, group=city_link)) +
                      geom_linerange(aes(ymin=lci, ymax=uci), size=.5, alpha=1) +
                      geom_point(size=1, aes(text=label)) +
                      #geom_jitter(aes(color=as.factor(iso2)), width=0.1, height=0, alpha=0.5, size=2) +
@@ -162,7 +162,7 @@ server <- function(input, output) {
                      xlab("") + ylab("Years") +
                      scale_color_discrete(name="")+
                      scale_y_continuous(limits = c(NA, NA), sec.axis = dup_axis(name = ""),
-                                        breaks=seq(range[1],range[2], by=5))+
+                                        breaks=seq(range[1],range[2], by=2.5))+
                      scale_x_continuous(expand=c(0.01, 0.01),
                                         breaks=temp$id,
                                         labels=paste0(temp$city_link, ", ", temp$iso2))+
@@ -176,9 +176,10 @@ server <- function(input, output) {
                            axis.text.y=element_text(size=labelsize, color="black"),
                            axis.ticks.y=element_blank(),
                            axis.title.y=element_text(face="bold", size=20),
-                           plot.title=element_text(face="bold", size=25)),
-                 tooltip = c("text")
-        ) %>% config(displayModeBar=T, displayLogo=F,
+                           plot.title=element_text(face="bold", size=25))
+                 
+        ggplotly(plot, tooltip = c("text")) %>% 
+            config(displayModeBar=T, displaylogo=F,
                      modeBarButtonsToRemove = list(
                          'sendDataToCloud',
                          'toImage',
@@ -187,7 +188,8 @@ server <- function(input, output) {
                          'hoverCompareCartesian',
                          'select2d','lasso2d'
                      ), collaborate = F) %>% 
-            layout(dragmode="pan")
+            layout(dragmode="zoom", 
+                   xaxis= list(fixedrange=T))
     })
     output$table2 <- DT::renderDataTable({
         tage<-as.numeric(ifelse(input$age2=='birth', 0, input$age2))
