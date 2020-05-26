@@ -4,23 +4,6 @@ library(data.table)
 library(tidyverse)
 # get undercounting factors, and create parameters of beta distribution
 source("MS10_SALURBAL_Helper.R")
-load("analytic files/undercounting_correction_bysex.rdata")
-correction<-correction %>% 
-  filter(grepl("ages_auto", type)) %>% 
-  group_by(SALID1, sex) %>% 
-  summarise(phi2=hmean(ucnt),
-            var2=var(ucnt)) %>% 
-  rowwise() %>% 
-  mutate(K2=(phi2*(1-phi2))/var2-1) %>%
-  # for those that have all 1s, make K2 high (high certainty)
-  mutate(K2=ifelse(is.nan(K2), 100000, K2)) %>% 
-  mutate(a=K2*phi2,
-         b=K2*(1-phi2)) %>% 
-  select(-var2) %>% 
-  mutate(b=ifelse(b==0, 1, b)) %>% 
-  mutate(a=ifelse(b<1, a/b, a),
-         b=ifelse(b<1, b/b, b))
-
 # get population and mortality
 country_list<-c("AR", "BR", "CL", "CO", "CR", "GT", "MX", "PA", "PE", "SV")
 mortality_dir<-"../SALURBAL_DATA/Mortality Data/DTH/All Cause/"
@@ -87,8 +70,23 @@ population<-map_dfr(country_list, function(country){
 population<-population %>% filter(substr(SALID1, 4, 6)!="888")
 summary(population)
 
+# load correciton factors
+load("analytic files/undercounting_correction_bysex.rdata")
+correction<-correction %>% 
+  group_by(SALID1, ages, sex) %>% 
+  summarise(phi2=hmean(ucnt),
+            var2=hmean_var(ucnt)) %>% 
+  rowwise() %>% 
+  mutate(K2=(phi2*(1-phi2))/var2-1) %>%
+  # for those that have all 1s, make K2 high (high certainty)
+  mutate(K2=ifelse(is.nan(K2), 10000, K2)) %>% 
+  mutate(a=K2*phi2,
+         b=K2*(1-phi2)) %>% 
+  mutate(b=ifelse(b==0, 1, b)) %>% 
+  mutate(a=ifelse(b<1, a/b, a),
+         b=ifelse(b<1, b/b, b)) %>% 
+  select(SALID1, ages, sex, a, b)
 save(dta_corrected, correction, population, file="analytic files/all_data_mortality_population_corrected_level1_age14.RData")
-
 
 ## save database of exposures
 rm(list=ls())
@@ -157,7 +155,7 @@ head(bec)
 
 ## SEC variables
 sec<-fread("../SALURBAL_DATA/SEC Data/SEC_Census_L1AD_03162020.csv") %>% 
-  filter(YEAR!=2017)
+  filter(YEAR!=2017) %>% select(-ISO2)
 # calculate SEI
 sec<-sec %>% ungroup() %>% 
   mutate(educationsd=scale(CNSMINPR_L1AD, scale=T, center=T),
@@ -169,7 +167,8 @@ sec<-sec %>% ungroup() %>%
 
 all_exposure<-full_join(pop_l1, sec) %>% 
   full_join(bec) %>% 
-  filter(!iso2%in%c("GT", "NI"))
+  filter(!iso2%in%c("GT", "NI"),
+         !is.na(iso2))
 summary(all_exposure)
 head(all_exposure)
 table(all_exposure$iso2)

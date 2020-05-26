@@ -11,6 +11,8 @@ load("analytic files/MS10_exposure_data.RData")
 load("analytic files/l1s.rdata")
 l1s<-l1s %>% mutate(country_name=as.character(country_name),
                     iso2=as.character(iso2))
+correction<-correction %>% 
+  filter(grepl("auto", ages))
 
 dta<-dta_corrected %>% full_join(years) %>% 
   filter(year>=y1, year<=y2) %>% 
@@ -244,6 +246,10 @@ pdf("diagnosis/all_cities.pdf", width=10, height=5)
 diagnosis
 dev.off()
 
+correction_db<-bind_rows(corrections[[1]] %>% mutate(sex="M"),
+                         corrections[[2]] %>% mutate(sex="F")) %>% 
+  left_join(city_ids)
+save(correction_db, file="analytic files/Undercounting_All_Iterations.rdata")
 
 groups<-group_split(model_output, keep=F)
 keys<-group_keys(model_output)
@@ -279,6 +285,7 @@ ale<-future_map2_dfr(groups,1:nrow(keys) , function(xx1, xx2){
 })
 
 save(ale, file="analytic files/Life_Expectancy_All_Iterations.rdata")
+save(corrections, file="analytic files/Correction_posteriors.rdata")
 
 # estimate LE for each undercounting strategy (Murray, Hill)
 rm(list=ls())
@@ -289,36 +296,13 @@ library(rjags)
 library(broom)
 source("MS10_SALURBAL_Helper.R")
 select<-dplyr::select
-hmean<-function(a){
-  1/mean(1/a)  
-}
 load("analytic files/all_data_mortality_population_corrected_level1_age14.RData")
 load("analytic files/MS10_exposure_data.RData")
 load("analytic files/l1s.rdata")
-load("analytic files/undercounting_correction_bysex.rdata")
 correction<-correction %>% 
-  mutate(ages=case_when(
-    grepl("ages_hill", type) ~ "ages_hill",
-    grepl("ages_murray", type) ~ "ages_murray",
-    grepl("ages_auto", type) ~ "ages_auto"
-  )) %>% 
-  # remove the main method (already used)
-  filter(!grepl("ages_auto", type)) %>% 
-  group_by(SALID1, ages, sex) %>% 
-  summarise(phi2=hmean(ucnt),
-            var2=var(ucnt)) %>% 
-  rowwise() %>% 
-  mutate(K2=(phi2*(1-phi2))/var2-1) %>%
-  # for those that have all 1s, make K2 high (high certainty)
-  mutate(K2=ifelse(is.nan(K2), 100000, K2)) %>% 
-  mutate(a=K2*phi2,
-         b=K2*(1-phi2)) %>% 
-  select(-var2) %>% 
-  mutate(b=ifelse(b==0, 1, b)) %>% 
-  mutate(a=ifelse(b<1, a/b, a),
-         b=ifelse(b<1, b/b, b)) %>% 
-  rename(type=ages)
-methods<-correction %>% pull(type) %>% unique
+  filter(!grepl("auto", ages))
+
+methods<-correction %>% pull(ages) %>% unique
 l1s<-l1s %>% mutate(country_name=as.character(country_name),
                     iso2=as.character(iso2))
 
@@ -335,7 +319,8 @@ dta_original<-dta_corrected %>% full_join(years) %>%
 summary(dta_original)  
 #ucnt_var<-methods[[1]]
 ale_by_ucnt<-map(methods, function(ucnt_var){
-  dta<-left_join(dta_original, correction %>% filter(type==ucnt_var) %>% select(-type))
+  dta<-left_join(dta_original, 
+                 correction %>% filter(ages==ucnt_var) %>% select(-ages))
   # JAGS model, by sex, same as above
   # sex_var<-"M"
   both_output_inmodel<-lapply(c("M","F"), function(sex_var){
@@ -439,6 +424,21 @@ ale_by_ucnt<-map(methods, function(ucnt_var){
     coefficients<-as.matrix(output[[1]])
     coefficients
   })
+  corrections<-map(both_output_inmodel, function(both_output){
+    #set.seed(333)
+    coefs<-as.data.frame(both_output)
+    coefs %>% as_tibble %>%  mutate(id=1:n()) %>% 
+      gather(varid, rate, -id) %>% 
+      filter(grepl("correction", varid)) %>% 
+      ungroup() %>% 
+      # lambda[XXX,YY]
+      # YY is the age group: 1 is 0-1, 2 is 1-4, 3 is 5-9...
+      # XXX is the city
+      mutate(city=as.numeric(substr(varid, 
+                                    regexpr("\\[", varid)+1, regexpr("\\]", varid)-1))) %>% 
+      select(-varid) 
+  })
+  
   # extract mortality rates
   model_output<-map(both_output_inmodel, function(both_output){
     #set.seed(333)
@@ -473,6 +473,14 @@ ale_by_ucnt<-map(methods, function(ucnt_var){
     filter(!duplicated(SALID1)) %>% 
     mutate(city=row_number())
   other_data<-city_ids %>% full_join(poplong) %>% left_join(l1s)
+  
+  correction_db<-bind_rows(corrections[[1]] %>% mutate(sex="M"),
+                           corrections[[2]] %>% mutate(sex="F")) %>% 
+    left_join(city_ids)
+  save(correction_db, 
+       file=paste0("analytic files/Undercounting_All_Iterations_", 
+                   ucnt_var,".rdata"))
+  
   
   # get number of deaths from the rate, 
   # then get just the data we need, 

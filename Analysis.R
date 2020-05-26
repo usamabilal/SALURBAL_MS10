@@ -7,7 +7,6 @@ library(readxl)
 library(furrr)
 library(broom.mixed)
 library(scales)
-library(multcomp)
 library(lme4)
 library(lspline)
 library(grid)
@@ -71,7 +70,9 @@ ale_median<-ale %>% group_by(SALID1, sex, age) %>%
   summarise(le=median(ale),
             lci=quantile(ale, probs=0.025),
             uci=quantile(ale, probs=0.975),
+            se=sqrt(var(ale)),
             dif_ci=uci-lci) %>% 
+  mutate(rse=se/le*100) %>% 
   left_join(l1s)
 
 # 95 CI ranges
@@ -285,6 +286,33 @@ p1<-ale_median %>%
 p<-arrangeGrob(grobs=p1, ncol=2)
 ggsave("results/ExtendedData1.pdf", p, width=15, height=5*3)
 
+# RSE Figure
+sex_label<-c("Women", "Men")
+names(sex_label)<-c("F", "M")
+age_label<-paste0("LE at ", c("Birth", paste0("age ", c(20, 40, 60))))
+names(age_label)<-c(0, 20, 40, 60)
+figure_rse<-ggplot(ale_median, aes(x=iso2, y=rse, group=iso2)) +
+  geom_boxplot(aes(group=as.factor(iso2)), fill=NA, outlier.color = NA, width=0.5)+
+  geom_jitter(aes(fill=as.factor(iso2)), width=0.1, height=0, alpha=1, size=2, 
+              color="black", pch=21) +
+  guides(color=F, fill=F, size=F)+
+  labs(x="",
+       y="Relative Standard Error",
+       title="")+
+  #scale_y_continuous(sec.axis=dup_axis(name = ylab2), limits=ylim)+
+  facet_grid(sex~age, labeller=labeller(age=age_label, sex=sex_label))+
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(50, "points"),
+        panel.grid.major.x = element_blank(),
+        axis.text.x=element_text(size=20, color="black"),
+        axis.text.y=element_text(size=16, color="black"),
+        axis.title.y=element_text(face="bold", size=20),
+        strip.background = element_blank(),
+        strip.text=element_text(face="bold", size=20),
+        plot.title=element_text(face="bold", size=25))
+ggsave("results/ExtendedData10.pdf", figure_rse, width=20, height=10)
+
 income_labels<-c("High-income countries", "Upper-middle-income countries",
                  "Middle-income countries","Lower-middle-income countries",
                  "Low-income countries")
@@ -303,6 +331,7 @@ figureS12<-ale_median %>%
     title<-paste0(ifelse(.y$age==0, "Life Expectancy at Birth in ", 
                          paste0("Life Expectancy at Age ", .y$age, " in ")),
                   ifelse(.y$sex=="M", "Men", "Women"))
+    title<-ifelse(.y$sex=="M", "Men", "Women")
     ylim1<-pmin(ale_median %>% filter(age==0) %>% pull(lci) %>% min,
                 income_les %>% filter(age==0) %>% pull(le_country) %>% min)
     ylim2<-pmax(ale_median %>% filter(age==0) %>% pull(uci) %>% max,
@@ -311,17 +340,18 @@ figureS12<-ale_median %>%
     ggplot(.x, aes(x=id, y=le)) +
       geom_errorbar(aes(ymin=lci, ymax=uci))+
       geom_point() +
-      geom_hline(data=incometemp, 
-                 aes(yintercept = le_country, color=country), lty=2)+
+      geom_hline(data=incometemp, lty=2, size=2,
+                 aes(yintercept = le_country, color=country))+
       scale_x_continuous(breaks=.x$id, labels=.x$city_link, expand=c(0.01,0.01))+
       scale_y_continuous(limits=ylim)+
       scale_color_manual(values=brewer_pal(type="qual", palette=2)(5), name="")+
-      guides(color=guide_legend(override.aes = list(size=2, lty=1)))+
+      guides(color=guide_legend(override.aes = list(size=2, linetype=1)))+
       labs(title=title, y="Life Expectancy (years)", x="")+
-      theme_classic()+
+      theme_bw()+
       theme(legend.position = "bottom",
             axis.text.y=element_text(face="bold", size=14, color="black"),
             axis.title=element_text(face="bold", size=16, color="black"),
+            panel.grid = element_blank(),
             axis.ticks.x=element_blank(),
             plot.title=element_text(face="bold", size=24, color="black"),
             axis.text.x=element_text(size=3, angle=90, 
@@ -336,7 +366,7 @@ figureS12<-arrangeGrob(grobs=list(figureS12[[1]], figureS12[[2]]), ncol=2)
 figureS12<-arrangeGrob(grobs=list(figureS12, legend), nrows=2,
                        heights=c(10, 1))
 plot(figureS12)
-ggsave("results/ExtendedData7.pdf", figureS12, width=20, height=7.5)
+ggsave("results/Figure2.pdf", figureS12, width=20, height=7.5)
 
 
 
@@ -408,6 +438,10 @@ ggsave("results/ExtendedData8.pdf",pmortality, width=20, height=20/1.6, units="i
 # outcome models
 # run a thousand models of LE ~ predictor
 # getting var SDs
+vars_cont<-vars<-c("pop_baseline", "growth_pct", "BECPOPDENSL1AD","BECPTCHDENSL1AD", "BECADINTDENSL1AD",
+                   "CNSMINPR_L1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
+                   "sei")
+
 select<-dplyr::select
 vars_sds<-vars_cont[-c(1, length(vars_cont))]
 sds<-all_exposure %>% ungroup() %>% 
@@ -423,7 +457,7 @@ sds_char[grep("BECPOPDENS", vars_sds)]<-round(sds[grep("BECPOPDENS", vars_sds)],
 pop_coefficient<-1.5
 sds_char<-c(paste0((pop_coefficient-1)*100, "%"), sds_char, "1 SD")
 sds_char
-ale_long<-full_join(ale, all_exposure %>% select(SALID1, iso2, BECPCTURBANL1AD, all_of(vars_cont), gdp_hi))
+ale_long<-full_join(ale, all_exposure %>% select(SALID1, iso2, BECPCTURBANL1AD, all_of(vars_cont)))
 vars_multiv<-vars_cont[!grepl("CNS", vars_cont)]
 #.x<-ale_long %>% filter(age==0, sex=="M", id==1)
 models<-ale_long %>% 
@@ -711,8 +745,8 @@ models_growth<-ale_long %>% #filter(id%in%1:10) %>%
 # sensitivity analysis (same correction and 3 other methods)
 ## same correction method, but restricting to those with >=90% [same analysis as above]
 include<-correction %>% 
-  filter(phi2>=.9) %>% select(SALID1, sex) 
-models_sens10<-ale_long %>% filter(id%in%1:10) %>% 
+  filter(a/(a+b) > 0.9) %>% select(SALID1, sex) 
+models_sens10<-ale_long %>% #filter(id%in%1:10) %>% 
   right_join(include) %>% 
   group_by(sex, age, id) %>% 
   group_modify(~{
@@ -741,9 +775,9 @@ models_sens10<-ale_long %>% filter(id%in%1:10) %>%
 load("analytic files/Life_Expectancy_by_UCNT.rdata")
 plan(multiprocess)
 models_sensother<-future_map_dfr(ale_by_ucnt, function(new_ale){
-  ale_long_ucnt<-full_join(new_ale, all_exposure %>% select(SALID1, iso2, BECPCTURBANL1AD, vars_cont, gdp_hi))
+  ale_long_ucnt<-full_join(new_ale, all_exposure %>% select(SALID1, iso2, BECPCTURBANL1AD, vars_cont))
   ale_long_ucnt %>% 
-    filter(id%in%1:10) %>% 
+    #filter(id%in%1:10) %>% 
     group_by(sex, age, id) %>% 
     group_modify(~{
       library(broom.mixed)
@@ -913,36 +947,15 @@ ggsave("results/ExtendedData5.pdf", figureS9, width=20, height=7.5)
 
 
 # plot undercounting
-load("analytic files/undercounting_correction_bysex.rdata")
-correction<-correction %>% 
-  filter(!grepl("hmean", type)) %>% 
-  mutate(ages=case_when(
-    grepl("ages_hill", type) ~ "ages_hill",
-    grepl("ages_murray", type) ~ "ages_murray",
-    grepl("ages_auto", type) ~ "ages_auto"
-  )) %>% 
-  group_by(SALID1, ages, sex) %>% 
-  summarise(phi2=hmean(ucnt),
-            var2=var(ucnt)) %>% 
-  rowwise() %>% 
-  mutate(K2=(phi2*(1-phi2))/var2-1) %>%
-  # for those that have all 1s, make K2 high (high certainty)
-  mutate(K2=ifelse(is.nan(K2), 100000, K2)) %>% 
-  mutate(a=K2*phi2,
-         b=K2*(1-phi2)) %>% 
-  select(-var2) %>% 
-  mutate(b=ifelse(b==0, 1, b)) %>% 
-  mutate(a=ifelse(b<1, a/b, a),
-         b=ifelse(b<1, b/b, b)) %>% 
-  rename(type=ages) %>% 
+correction_plot<-correction %>% 
+  mutate(phi2=a/(a+b)) %>% 
   left_join(l1s)
-
-ylim<-c(min(correction$phi2), 1)
+ylim<-c(min(correction_plot$phi2), 1)
 sex_label<-c("Women", "Men")
 names(sex_label)<-c("F", "M")
 methods_label<-c("Best-fitting age bands", "Hill bands (30-65)", "Murray bands (50-70)")
-names(methods_label)<-correction$type %>% unique
-ggplot(correction, aes(x=iso2, y=phi2, group=iso2)) +
+names(methods_label)<-correction_plot$ages %>% unique
+ggplot(correction_plot, aes(x=iso2, y=phi2, group=iso2)) +
   geom_hline(yintercept = 1, lty=2)+
   #geom_boxplot(aes(group=as.factor(iso2)), fill=NA, outlier.color = NA, width=0.5)+
   geom_jitter(aes(fill=as.factor(iso2)), 
@@ -953,8 +966,8 @@ ggplot(correction, aes(x=iso2, y=phi2, group=iso2)) +
                      breaks = base_breaks(5),
                      labels=percent,
                      limits = ylim)+
-  facet_grid(sex~type, labeller = labeller(sex=sex_label,
-                                           type=methods_label))+
+  facet_grid(sex~ages, labeller = labeller(sex=sex_label,
+                                           ages=methods_label))+
   theme_bw() +
   theme(legend.position = "bottom",
         legend.key.width = unit(50, "points"),

@@ -1,9 +1,4 @@
 # helper functions
-
-# harmonic mean
-hmean<-function(a){
-  1/mean(1/a)  
-}
 # gompertz approximation
 gompertz_approximation<-function(temp, max_original=80, min=45, max=90, just5age=F,
                                  returnage14=F){
@@ -58,4 +53,13 @@ ICC_lmer <- function(out) {
   varests <- as.data.frame(VarCorr(out))
   varests<-varests[,"vcov"]
   return(varests[1]/sum(varests))
+}
+# harmonic mean
+hmean<-function(a){
+  1/mean(1/a)  
+}
+# sample variance
+hmean_var<-function(x){
+  var<-sum((x-hmean(x))^2)/(length(x)-1)
+  return(var)
 }

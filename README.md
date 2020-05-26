@@ -9,4 +9,4 @@ Article available at: PENDING
 * _Analysis.R_: Contains all the study analyses, descriptive and regression models. Also saves data for the online app.
 * _Undercounting_estimation.R_: Contains the code to calculate undercounting factors.
 * _MS10_SALURBAL_Helper.R_* Contains a few helper functions.
-* _MS10/app.R_: Contains the Shiny app available at https://drexel-uhc.shinyapps.io/MS10/
+* _MS10/app.R_: Contains the Shiny app available at http://apps.uhcdata.org/app/salurbal_ms10

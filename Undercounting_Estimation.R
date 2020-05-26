@@ -115,8 +115,7 @@ ages_murray<-seq(50, 70, by=5)
 correction<-both %>% group_by(iso2, sex) %>% 
   group_modify(~{
     emax<-.x %>% pull(emax) %>% unique
-    .x<-.x %>% select(-emax) %>% 
-      rename(cod=SALID1)
+    .x<-.x %>% select(-emax)
     ddm_murray<-ddm(.x, eOpen=emax, exact.ages = ages_murray, deaths.summed = F)
     ddm_hill<-ddm(.x, eOpen=emax, exact.ages = ages_hill)
     ddm_auto<-ddm(.x, eOpen=emax)
@@ -127,10 +126,9 @@ correction<-both %>% group_by(iso2, sex) %>%
   }) %>% 
   rowwise() %>% 
   rename(SALID1=cod) %>% 
-  gather(combo, ucnt, -iso2, -ages, -SALID1, -sex) %>% 
-  mutate(type=paste0(combo, "_", "ages_", ages)) %>% 
-  select(iso2, sex, SALID1, type, ucnt) %>% 
+  gather(method, ucnt, -iso2, -ages, -SALID1, -sex) %>% 
+  # cap at 1
   mutate(ucnt=ifelse(ucnt>1, 1, ucnt))
-# final datasets: iso2/sex/city_id/type of factor (3 methods x 3 age bands)/coverage
-save(correction, file="../SALURBAL_MS10/analytic files/undercounting_correction_bysex.rdata")
+# final datasets: iso2/sex/city_id/3 methods/3 age bands/coverage
+save(correction, file="analytic files/undercounting_correction_bysex.rdata")
 
