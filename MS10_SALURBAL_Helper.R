@@ -63,3 +63,54 @@ hmean_var<-function(x){
   var<-sum((x-hmean(x))^2)/(length(x)-1)
   return(var)
 }
+scale_new<-function(x){
+  as.numeric(scale(x, center=T, scale=T))
+}
+# function to take coefficients and make a table with CIs
+t3_function<-function(x, y){
+  #xx<-coefs[coefs$exp=="mortality",]
+  xx<-x
+  xx$exp<-exp(xx$est)
+  xx$lci<-exp(xx$est-1.96*xx$se)
+  xx$uci<-exp(xx$est+1.96*xx$se)
+  xx$coefs<-paste0(format(xx$exp, digits=2, nsmall=2)," (",
+                   format(xx$lci, digits=2, nsmall=2), ";",
+                   format(xx$uci, digits=2, nsmall=2), ")")
+  data.frame(cmnn=xx$coefs[1], 
+             cancer=xx$coefs[2], 
+             cvd="1 (Ref.)", 
+             accident=xx$coefs[3], 
+             violent=xx$coefs[4], stringsAsFactors = F)
+}
+# table 1 function
+t1_function<-function(x, y){
+  t<-lapply(vars, function(var){
+    if (is.na(var)){
+      paste0("")
+    } else if (grepl("^p_", var)){
+      summary<-x %>% pull(var) %>% quantile(probs=c(.5, .25, .75), na.rm=T) %>% times100 %>% format(digits=1, nsmall=1) 
+      paste0(summary[1], " [",
+             summary[2], ";",
+             summary[3], "]")
+    } else if (grepl("^CNS", var)){
+      summary<-x %>% pull(var) %>% quantile(probs=c(.5, .25, .75), na.rm=T)  %>% format(digits=1, nsmall=1) 
+      paste0(summary[1], " [",
+             summary[2], ";",
+             summary[3], "]")
+    } else {
+      summary<-x %>% pull(var) %>% quantile(probs=c(.5, .25, .75), na.rm=T) %>% format(digits=1, nsmall=1)
+      paste0(summary[1], " [",
+             summary[2], ";",
+             summary[3], "]")
+    }
+  })
+  t<-append(t, nrow(x), after=0)
+  t<-as.data.frame(do.call(rbind, t), stringsAsFactors = F)
+  t$var<-c("n", vars)
+  t
+}
+ICC <- function(out) {
+  varests <- as.data.frame(VarCorr(out))
+  varests<-varests[,"vcov"]
+  return(varests[1]/sum(varests))
+}

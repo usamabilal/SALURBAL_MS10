@@ -1,12 +1,12 @@
 # SALURBAL_MS10
-Repository for the article Life expectancy is highly heterogeneous 363 cities in 9 Latin American Countries: the SALURBAL project.
+Repository for the article Life expectancy and mortality profiles are highly heterogeneous in Latin American 363 cities: the SALURBAL project.
 Article available at: PENDING
 
 **Files:**
 
-* _Data_Management.R_: Contains data management, from SALURBAL harmonized data to data in 5-year age groups, sex, and city, with the list of years for each country, and the distribution of undercounting factors. Also prepares predictors data.
-* _LE_Estimation.R_: Contains the estimation of life expectancy, both for the main analysis and for the two sensitivity analysis (Hill and Murray age bands).
-* _Analysis.R_: Contains all the study analyses, descriptive and regression models. Also saves data for the online app.
-* _Undercounting_estimation.R_: Contains the code to calculate undercounting factors.
+* _Data_Management.R_: Contains data management, from SALURBAL harmonized data to data in 5-year age groups, sex, and city, with the list of years for each country, and the distribution of undercounting factors. Contains the code to calculate undercounting factors. Also prepares predictors data.
+* _LE_Estimation.R_: Contains the estimation of life expectancy.
+* _Cause_Specific_Estimation.R_: Contains the code to clean harmonized SALRUBAL data into cause-specific mortality.
+* _Analysis.R_: Contains all analysis for the paper. Also saves data for the online app.
 * _MS10_SALURBAL_Helper.R_* Contains a few helper functions.
 * _MS10/app.R_: Contains the Shiny app available at http://apps.uhcdata.org/app/salurbal_ms10
