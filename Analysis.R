@@ -17,7 +17,7 @@ library(rnaturalearthdata)
 library(ggspatial)
 library(rmapshaper)
 library(classInt)
-run_models=F
+run_models=T
 source("MS10_SALURBAL_Helper.R")
 select<-dplyr::select
 load("analytic files/all_data_mortality_population_corrected_level1_age14.RData")
@@ -35,6 +35,12 @@ dta_le<-ale %>%
             uci=quantile(ale, probs=0.975)) %>% 
   left_join(l1s)
 save(dta_le, file="MS10/data_LE.rdata")
+file.copy(from="analytic files/l1s.rdata", 
+          to="MS10/l1s.rdata", overwrite = T)
+file.copy(from="analytic files/MS9_outcome_data.rdata", 
+          to="MS10/MS9_outcome_data.rdata", overwrite = T)
+file.copy(from="analytic files/MS10_exposure_data.RData", 
+          to="MS10/MS10_exposure_data.RData", overwrite = T)
 
 
 # median LE in long format for some of the descriptives
@@ -408,7 +414,7 @@ fwrite(iccs, file="results/SupplementTable51.csv")
 
 # Outcome models
 vars_cont<-vars<-c("pop_baseline", "growth_pct", "BECPOPDENSL1AD","BECPTCHDENSL1AD", "BECADINTDENSL1AD",
-                   "CNSMINPRL1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
+                   "CNSMINPR_L1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
                    "sei")
 # get standard deviations for table
 vars_sds<-vars_cont[-c(1, length(vars_cont))]
@@ -1306,7 +1312,7 @@ ggsave("results/Figure4.pdf",pall, width=20, height=7)
 # all of the other variables
 vars<-c("adj_rate","pop_baseline", "growth_pct", 
         "BECPOPDENSL1AD","BECPTCHDENSL1AD", "BECADINTDENSL1AD",
-        "CNSMINPRL1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD")
+        "CNSMINPR_L1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD")
 xtitles<-c("Age-Adjusted All-Cause Mortality", "Population at Baseline (log scale)", "% Growth in Population over 5 years",
            "Population Density (Population/km2)","Patch Density (Patches/km2)","Intersection Density (intersections/km2)",
            "% with Completed primary Education or Above", "% HHs with Piped Water in the Household","% HHs with Connection to the Sewage Network","% Overcrowded HHs (>3 people per room)")
@@ -1551,7 +1557,7 @@ ggsave("results/ExtendedData9.pdf",pall, width=25, height=12.5,
 # Regression models
 vars<-c("adj_rate","pop_baseline", "growth_pct", 
         "BECPOPDENSL1AD","BECPTCHDENSL1AD", "BECADINTDENSL1AD",
-        "CNSMINPRL1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
+        "CNSMINPR_L1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
         "sei")
 
 source("MS10_SALURBAL_Helper.R")
@@ -2063,7 +2069,7 @@ dta<-full_join(dta, letable)
 
 vars<-c("leM", "leF", paste0("p_", cause_titles_coll),"p_illdefined_disease", "p_illdefined_injury",
         "adj_rate","pop_baseline", "growth_pct", "BECPOPDENSL1AD","BECPTCHDENSL1AD", "BECADINTDENSL1AD",
-        "CNSMINPRL1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
+        "CNSMINPR_L1AD", "CNSWATINL1AD", "CNSSEWNETL1AD", "CNSCROWD3RML1AD", 
         "sei")
 all_exposure$pop_group<-as.numeric(cut(all_exposure$pop_baseline, breaks = c(0*10^5, 2.5*10^5, 5*10^5, 1*10^6, 5*10^6, 25*10^6), include.lowest = T))
 table(all_exposure$pop_group)

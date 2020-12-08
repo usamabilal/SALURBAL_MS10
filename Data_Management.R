@@ -12,7 +12,7 @@ country_list<-c("AR", "BR", "CL", "CO", "CR", "MX", "PA", "PE", "SV")
 pop_dir<-"../SALURBAL_DATA/Population Data/L1AD/Age Category/"
 pop_files<-list.files(pop_dir, pattern="L1")
 plan(multiprocess, .cleanup=T)
-# country<-"MX"
+# country<-"SV"
 population<-future_map_dfr(country_list, function(country){
   print(country)
   file<-pop_files[grepl(country, pop_files)]
@@ -66,8 +66,8 @@ population<-future_map_dfr(country_list, function(country){
 })
 
 # get all-cause mortality
-mortality_dir<-"../SALURBAL_DATA/Mortality Data/DTH/All Cause/"
-mortality_files<-list.files(mortality_dir, pattern="L1")
+mortality_dir<-"../SALURBAL_DATA/Mortality Data/DIN/"
+mortality_files<-list.files(mortality_dir, pattern="csv")
 all_cause_mortality<-map_dfr(country_list, function(country){
   print(country)
   file<-mortality_files[grepl(country, mortality_files)]
@@ -75,15 +75,16 @@ all_cause_mortality<-map_dfr(country_list, function(country){
   # filter to 2010:2016
   mortality<-mortality %>% filter(YEAR%in%(2010:2016)) %>% 
     mutate(year=YEAR,
-           male=DTHMALE,
+           n=1,
+           male=DINMALE,
            age=case_when(
-             DTHAGE5C==0 ~ 0,
-             DTHAGE5C%in%(1:4)~ 1,
-             DTHAGE5C>=age_limit ~ age_limit,
-             T ~ floor(DTHAGE5C/5)*5
+             DINAGE5C==0 ~ 0,
+             DINAGE5C%in%(1:4)~ 1,
+             DINAGE5C>=age_limit ~ age_limit,
+             T ~ floor(DINAGE5C/5)*5
            ))%>% 
     group_by(SALID1, year, age, male) %>% 
-    summarise(deaths=sum(DTHDEATHS))
+    summarise(deaths=sum(n))
   # fill in any potential gaps
   template<-expand.grid(SALID1=unique(mortality$SALID1),
                         year=unique(mortality$year),
@@ -93,24 +94,27 @@ all_cause_mortality<-map_dfr(country_list, function(country){
     mutate(deaths=replace_na(deaths, 0),
            iso2=country)
 })
+
 # cause-specific mortality (redistributed)
-mortality_dir<-"../SALURBAL_DATA/Mortality Data/DTHRED/Tier 2/"
-mortality_files<-list.files(mortality_dir, pattern="L1")
+mortality_dir<-"../SALURBAL_DATA/Mortality Data/DIN/"
+mortality_files<-list.files(mortality_dir, pattern="csv")
 cause_specific_red<-map_dfr(country_list, function(country){
   print(country)
   file<-mortality_files[grepl(country, mortality_files)]
   mortality<-fread(paste0(mortality_dir, file),stringsAsFactors = F)
   mortality<-mortality %>% filter(YEAR%in%(2010:2016)) %>% 
     mutate(year=YEAR,
-           male=DTHMALE,
+           n=1,
+           male=DINMALE,
            age=case_when(
-             DTHAGE5C==0 ~ 0,
-             DTHAGE5C%in%(1:4)~ 1,
-             DTHAGE5C>=age_limit ~ age_limit,
-             T ~ floor(DTHAGE5C/5)*5
+             DINAGE5C==0 ~ 0,
+             DINAGE5C%in%(1:4)~ 1,
+             DINAGE5C>=age_limit ~ age_limit,
+             T ~ floor(DINAGE5C/5)*5
            ))%>% 
-    group_by(SALID1, year, DTHCOD_FINAL2, age, male) %>% 
-    summarise(deaths=sum(DTH2REDDEATHS))
+    group_by(SALID1, DINCOD_FINAL2, year, age, male) %>% 
+    summarise(deaths=sum(n)) %>% 
+    rename(DTHCOD_FINAL2=DINCOD_FINAL2)
   # fill in any potential gaps
   template<-expand.grid(SALID1=unique(mortality$SALID1),
                         DTHCOD_FINAL2=unique(mortality$DTHCOD_FINAL2),
@@ -123,29 +127,32 @@ cause_specific_red<-map_dfr(country_list, function(country){
   mortality
 })
 # cause specific, not redistributed
-mortality_dir<-"../SALURBAL_DATA/Mortality Data/DTH/Tier 2/"
-mortality_files<-list.files(mortality_dir, pattern="L1")
+mortality_dir<-"../SALURBAL_DATA/Mortality Data/DIN/"
+mortality_files<-list.files(mortality_dir, pattern="csv")
 cause_specific_nored<-map_dfr(country_list, function(country){
   print(country)
   file<-mortality_files[grepl(country, mortality_files)]
   mortality<-fread(paste0(mortality_dir, file),stringsAsFactors = F)
   mortality<-mortality %>% filter(YEAR%in%(2010:2016)) %>% 
     mutate(year=YEAR,
-           male=DTHMALE,
+           n=1,
+           male=DINMALE,
            age=case_when(
-             DTHAGE5C==0 ~ 0,
-             DTHAGE5C%in%(1:4)~ 1,
-             DTHAGE5C>=age_limit ~ age_limit,
-             T ~ floor(DTHAGE5C/5)*5
+             DINAGE5C==0 ~ 0,
+             DINAGE5C%in%(1:4)~ 1,
+             DINAGE5C>=age_limit ~ age_limit,
+             T ~ floor(DINAGE5C/5)*5
            ))%>% 
-    group_by(SALID1, year, DTHCOD_GHE2, age, male) %>% 
-    summarise(deaths=sum(DTH2DEATHS))
+    group_by(SALID1, DINCOD_GHE2, year, age, male) %>% 
+    summarise(deaths=sum(n)) %>% 
+    rename(DTHCOD_GHE2=DINCOD_GHE2)
   # fill in any potential gaps
   template<-expand.grid(SALID1=unique(mortality$SALID1),
                         DTHCOD_GHE2=unique(mortality$DTHCOD_GHE2),
                         year=unique(mortality$year),
                         age=unique(mortality$age),
                         male=unique(mortality$male))
+  
   mortality<-full_join(mortality, template) %>% 
     mutate(deaths=replace_na(deaths, 0),
            iso2=country)
@@ -392,11 +399,11 @@ pop_l1<-left_join(pop_l1, l1s %>% select(SALID1, iso2))
 summary(pop_l1)
 
 # BEC variables
-bec<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1AD_20191031.csv", stringsAsFactors = F)
+bec<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1AD_20200506.csv", stringsAsFactors = F)
 bec$total_transport<-rowSums(bec[,colnames(bec)[grepl("BECPR", colnames(bec))]])
 bec$total_transport_yn<-as.numeric(bec$total_transport>=1)
 bec<-bec[,c("SALID1", colnames(bec)[grepl("BEC", colnames(bec))],"total_transport", "total_transport_yn")]
-becux<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1UX_20191031.csv", stringsAsFactors = F)
+becux<-read.csv("../SALURBAL_DATA/BEC Data/BEC_L1UX_20200506.csv", stringsAsFactors = F)
 becux<-becux[,c("SALID1", colnames(becux)[grepl("BEC", colnames(becux))])]
 becux<-becux[,!grepl("GASPRICE", colnames(becux))]
 bec<-full_join(bec, becux)
@@ -404,11 +411,11 @@ head(bec)
 
 
 ## SEC variables
-sec<-fread("../SALURBAL_DATA/SEC Data/SEC_Census_L1AD_07142020.csv") %>% 
+sec<-fread("../SALURBAL_DATA/SEC Data/SEC_Census_L1AD_07162020.csv") %>% 
   filter(YEAR!=2017) %>% select(-ISO2)
 # calculate SEI
 sec<-sec %>% ungroup() %>% 
-  mutate(educationsd=scale(CNSMINPRL1AD, scale=T, center=T),
+  mutate(educationsd=scale(CNSMINPR_L1AD, scale=T, center=T),
          watersd=scale(CNSWATINL1AD, scale=T, center=T),
          sewagesd=scale(CNSSEWNETL1AD, scale=T, center=T),
          overcrowdingsd=scale(CNSCROWD3RML1AD, scale=T, center=T)*(-1)) %>% 
