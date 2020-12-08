@@ -33,7 +33,7 @@ ui <- fluidPage(
                         h1("Introduction"),
                         hr(),
                         p("This app provides extra information and data on the manuscript entitled", 
-                          em("Life expectancy and mortality profiles are highly heterogeneous in 363 cities of Latin America: the SALURBAL project")),
+                          em("Life expectancy and mortality in 363 cities of Latin America: the SALURBAL project")),
                         p("The following tabs are available:"),
                         tags$ol(tags$li(strong("Life Expectancy Distribution: "), "shows a boxplot with the distribution of life expectancy at different ages and sexes for all cities"), 
                                 tags$li(strong("Life Expectancy Uncertainty: "), "shows a linerange plot with the distribution of life expectancies at different ages and sexes for all cities [or restricted to a specific country] and the corresponding 95% Credible Intervals"),
@@ -42,9 +42,10 @@ ui <- fluidPage(
                                 tags$li(strong("PM Distribution: "), "shows an interactive stacked bar plot with the proportion of deaths due to each cause"), 
                                 tags$li(strong("PM Table: "), "shows a data table with proportionate mortality by cause"),
                                 tags$li(strong("PM Map: "), "maps, for a specific country, the proportionate mortality by cause")),
-                        p("Code for the app and analysis is available here: "),
-                        a(href="https://github.com/usamabilal/SALURBAL_MS10",
-                          "https://github.com/usamabilal/SALURBAL_MS10",  target="_blank")),
+                        p("Code for the app and analysis is available here: ",
+                          a(href="https://github.com/usamabilal/SALURBAL_MS10",
+                            "https://github.com/usamabilal/SALURBAL_MS10",  target="_blank")),
+                        p("The manuscript and derived data from this analysis is licensed under a ", a(href="https://creativecommons.org/licenses/by/4.0/", "CC-BY 4.0 license.", target="_blank"))),
                tabPanel("Life Expectancy Distribution",
                         sidebarLayout(
                             sidebarPanel(
