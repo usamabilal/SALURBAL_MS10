@@ -93,7 +93,8 @@ ui <- fluidPage(
                                 selectInput("country2", label="Country", 
                                             choices=c("All", "AR", "BR", "CL", "CO", "CR/PA/SV",
                                                       "MX", "PE"), 
-                                            selected = "All")
+                                            selected = "All"),
+                                downloadButton("downloadData_le", "Download")
                             ),
                             mainPanel(
                                 DT::dataTableOutput("table2")
@@ -140,10 +141,11 @@ ui <- fluidPage(
                tabPanel("PM Table",
                         sidebarLayout(
                             sidebarPanel(
-                                selectInput("country2", label="Country", 
+                                selectInput("country2pm", label="Country", 
                                             choices=c("All", "AR", "BR", "CL", "CO", "CR/PA/SV",
                                                       "MX", "PE"), 
-                                            selected = "All")
+                                            selected = "All"),
+                                downloadButton("downloadData_pm", "Download")
                             ),
                             mainPanel(
                                 DT::dataTableOutput("table2_pm")
@@ -262,6 +264,35 @@ server <- function(input, output) {
             layout(dragmode="zoom", 
                    xaxis= list(fixedrange=T))
     })
+    output$downloadData_le <- downloadHandler(
+        filename = function() {
+            paste("salurbal_le_data.csv")
+        },
+        content = function(file) {
+            tage<-as.numeric(ifelse(input$age2=='birth', 0, input$age2))
+            tsex<-ifelse(input$sex2=="men", "M", "F")
+            temp<-dta_le %>% filter(age==tage&sex==tsex)
+            title<-paste0("Life Expectancy at ",
+                          ifelse(tage==0, "birth", paste0("age ", tage)),
+                          " for ", ifelse(tsex=="M", "Men", "Women")," in 363 Latin American cities")
+            if (input$country2=="CR/PA/SV"){
+                temp<-temp %>% filter(iso2%in%c("CR", "PA", "SV"))
+            } else if (input$country2=="All"){
+                temp<-temp
+            } else {
+                temp<-temp %>% filter(iso2==input$country2)    
+            }
+            temp<-temp %>% arrange(desc(le)) %>% 
+                ungroup() %>% 
+                select(country_name, city_link, age, sex,le, lci, uci) %>% 
+                mutate(le=round(le, digits=1),
+                       lci=round(lci, digits=1),
+                       uci=round(uci, digits=1),
+                       sex=ifelse(sex=="F", "Women", "Men")) %>% 
+                rename(country=country_name, city=city_link)
+            write.csv(temp, file, row.names = FALSE)
+        }
+    )
     output$table2 <- DT::renderDataTable({
         tage<-as.numeric(ifelse(input$age2=='birth', 0, input$age2))
         tsex<-ifelse(input$sex2=="men", "M", "F")
@@ -434,13 +465,37 @@ server <- function(input, output) {
         }
         plot_plotly
     })
+    output$downloadData_pm <- downloadHandler(
+        filename = function() {
+            paste("salurbal_pm_data.csv")
+        },
+        content = function(file) {
+            if (input$country2pm=="CR/PA/SV"){
+                temp<-dta %>% filter(iso2%in%c("CR", "PA", "SV"))
+            } else if (input$country2pm=="All"){
+                temp<-dta
+            } else {
+                temp<-dta %>% filter(iso2==input$country2pm)    
+            }
+            temp<-temp %>% 
+                arrange(desc(total)) %>% 
+                ungroup() %>% 
+                select(country_name, city_link, type, prop) %>% 
+                mutate(prop=prop*100,
+                       prop=round(prop, digits=1)) %>% 
+                spread(type, prop) %>% 
+                select(country_name, city_link, cmnn, cancer, ncd, accident, violent) %>% 
+                rename(country=country_name, city=city_link)
+            write.csv(temp, file, row.names = FALSE)
+        }
+    )
     output$table2_pm <- DT::renderDataTable({
-        if (input$country2=="CR/PA/SV"){
+        if (input$country2pm=="CR/PA/SV"){
             temp<-dta %>% filter(iso2%in%c("CR", "PA", "SV"))
-        } else if (input$country2=="All"){
+        } else if (input$country2pm=="All"){
             temp<-dta
         } else {
-            temp<-dta %>% filter(iso2==input$country2)    
+            temp<-dta %>% filter(iso2==input$country2pm)    
         }
         temp<-temp %>% 
             arrange(desc(total)) %>% 
