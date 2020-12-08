@@ -1,5 +1,5 @@
 # SALURBAL_MS10
-Repository for the article Life expectancy and mortality profiles are highly heterogeneous in Latin American 363 cities: the SALURBAL project.
+Repository for the article Life expectancy and mortality in 363 cities of Latin America: the SALURBAL project.
 Article available at: PENDING
 
 **Files:**
