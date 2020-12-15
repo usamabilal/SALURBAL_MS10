@@ -17,7 +17,7 @@ library(rnaturalearthdata)
 library(ggspatial)
 library(rmapshaper)
 library(classInt)
-run_models=T
+run_models=F
 source("MS10_SALURBAL_Helper.R")
 select<-dplyr::select
 load("analytic files/all_data_mortality_population_corrected_level1_age14.RData")
@@ -87,7 +87,46 @@ p1<-ale_median %>%
   })
 pLEB<-arrangeGrob(grobs=p1[1:2], ncol=2)
 plot(pLEB)
+ggsave("results/Figure1_color.pdf", pLEB, width=15, height=5)
+# re-doing figure in BnW
+p1<-ale_median %>% 
+  filter(age==0) %>% 
+  group_by(age, sex) %>% 
+  group_map(~{
+    age<-.y$age
+    sex<-.y$sex
+    ylim<-c(min(floor(ale_median[ale_median$age==age, "le"]/5)*5),
+            max(ceiling(ale_median[ale_median$age==age, "le"]/5)*5))
+    ylab<-ifelse(age==0, "Life Expectancy at Birth", paste0("Life Expectancy at Age ", age))
+    title<-ifelse(sex=="M", "Men", "Women")
+    ylab2<-ifelse(sex=='M', ylab, "")
+    ylab<-ifelse(sex=='M', "", ylab)
+    x<-.x %>% left_join(l1s)
+    ggplot(x, aes(x=iso2, y=le, group=iso2)) +
+      geom_boxplot(aes(group=as.factor(iso2)), fill=NA, outlier.color = NA, width=0.5)+
+      geom_jitter(fill="gray", width=0.1, height=0, alpha=1, size=2, 
+                  color="black", pch=21) +
+      guides(color=F, fill=F, size=F)+
+      labs(x="",
+           y=ylab,
+           title=title)+
+      scale_y_continuous(sec.axis=dup_axis(name = ylab2), limits=ylim)+
+      theme_bw() +
+      theme(legend.position = "bottom",
+            legend.key.width = unit(50, "points"),
+            panel.grid.major.x = element_blank(),
+            axis.text.x=element_text(size=20, color="black"),
+            axis.text.y=element_text(size=16, color="black"),
+            axis.title.y=element_text(face="bold", size=20),
+            plot.title=element_text(face="bold", size=25))
+  })
+pLEB<-arrangeGrob(grobs=p1[1:2], ncol=2)
+plot(pLEB)
 ggsave("results/Figure1.pdf", pLEB, width=15, height=5)
+# save source data
+ale_median %>% 
+  filter(age==0) %>% ungroup() %>% select(sex, le, iso2) %>% 
+  fwrite("Source/Source_Data_Figure1.csv")
 
 # other LE descriptives for Supplement, Appendix, discussion, results, etc.
 # first, descriptives on ranges, highest, lowest ciites, etc.
@@ -214,7 +253,14 @@ p1<-ale_median %>%
             plot.title=element_text(face="bold", size=25))
   })
 p<-arrangeGrob(grobs=p1, ncol=2)
-ggsave("results/ExtendedData1.pdf", p, width=15, height=5*3)
+ggsave("results/ExtendedData1.pdf", p, width=15, height=5*4)
+ggsave("results/ExtendedData1.eps", p, width=15, height=5*4)
+# save source data
+ale_median %>% 
+  left_join(country_les %>% rename(country_name=country)) %>%
+  ungroup() %>% 
+  select(sex, age, le, iso2, le_country) %>% 
+  fwrite("Source/Source_Data_ExtendedData1.csv")
 
 # Extended Data 2
 # comparison with other income groups
@@ -294,8 +340,8 @@ figure2<-ale_median %>%
             plot.title=element_text(face="bold", size=24, color="black"),
             axis.text.x=element_text(size=3, angle=90, 
                                      hjust=1, color="black"),
-            legend.text=element_text(size=16, color="black"),
-            legend.title=element_text(face="bold", size=16, color="black"))+
+            legend.text=element_text(size=20, color="black"),
+            legend.title=element_text(face="bold", size=20, color="black"))+
       theme(axis.text.x=element_blank(), axis.ticks.x = element_blank())
   })
 legend<-get_legend(figure2[[1]])
@@ -304,7 +350,16 @@ figure2<-arrangeGrob(grobs=list(figure2[[1]], figure2[[2]]), ncol=2)
 figure2<-arrangeGrob(grobs=list(figure2, legend), nrows=2,
                      heights=c(10, 1))
 plot(figure2)
-ggsave("results/ExtendedData2.pdf", figure2, width=20, height=7.5)
+ggsave("results/ExtendedData2.pdf", figure2, width=20, height=11.4)
+ggsave("results/ExtendedData2.eps", figure2, width=20, height=11.4)
+# source data
+ale_median %>% 
+  filter(age==0) %>% 
+  ungroup() %>% 
+  select(iso2, sex, age, le, lci, uci) %>% 
+  left_join(income_les %>% filter(age==0) %>% spread(country, le_country)) %>% 
+  fwrite("Source/Source_Data_ExtendedData2.csv")
+fread("Source/Source_Data_ExtendedData2.csv") %>% head
 
 # now explore the uncertainty
 # 95 CI ranges
@@ -325,12 +380,12 @@ names(sex_label)<-c("F", "M")
 age_label<-paste0("LE at ", c("Birth", paste0("age ", c(20, 40, 60))))
 names(age_label)<-c(0, 20, 40, 60)
 figure_rse<-ggplot(ale_median, aes(x=iso2, y=rse, group=iso2)) +
-  geom_boxplot(aes(group=as.factor(iso2)), fill=NA, outlier.color = NA, width=0.5)+
+  #geom_boxplot(aes(group=as.factor(iso2)), fill=NA, outlier.color = NA, width=0.5)+
   geom_jitter(aes(fill=as.factor(iso2)), width=0.1, height=0, alpha=1, size=2, 
               color="black", pch=21) +
   guides(color=F, fill=F, size=F)+
   labs(x="",
-       y="Relative Standard Error",
+       y="Relative Standard Error (%)",
        title="")+
   #scale_y_continuous(sec.axis=dup_axis(name = ylab2), limits=ylim)+
   facet_grid(sex~age, labeller=labeller(age=age_label, sex=sex_label))+
@@ -513,8 +568,10 @@ if (run_models==T) {
     temp
   }, .progress=T)
   save(models, models_growth, file="results/model_results_le.rdata")
+} else {
+  load("results/model_results_le.rdata")  
 }
-load("results/model_results_le.rdata")
+
 
 results_multiv<-models %>% 
   filter(!grepl("CNS", var)) %>% 
@@ -654,9 +711,9 @@ age_multiv<-results_multiv %>%
             axis.title=element_text(face="bold", size=16, color="black"),
             axis.ticks.x=element_blank(),
             plot.title=element_text(face="bold", size=24, color="black"),
-            axis.text.x=element_text(face="bold", size=14, angle=90, hjust=1, color="black"),
-            legend.text=element_text(size=14, color="black"),
-            legend.title=element_text(face="bold", size=16, color="black"))
+            axis.text.x=element_text(face="bold", size=16, angle=90, hjust=1, color="black"),
+            legend.text=element_text(size=16, color="black"),
+            legend.title=element_text(face="bold", size=18, color="black"))
   })
 age_multiv<-lapply(age_multiv, function(xx) xx+guides(color=F, fill=F))
 age_multiv<-arrangeGrob(grobs=list(age_multiv[[2]], age_multiv[[1]]), ncol=2,
@@ -665,7 +722,15 @@ age_multiv<-arrangeGrob(grobs=list(age_multiv[[2]], age_multiv[[1]]), ncol=2,
 age_both<-arrangeGrob(grobs=list(age_univ, age_multiv), ncol=1)
 age_both<-arrangeGrob(grobs=list(age_both, legend), nrows=2,
                       heights=c(20, 1))
-ggsave("results/ExtendedData3.pdf", age_both, width=15, height=15/1.333)
+ggsave("results/ExtendedData3.pdf", age_both, width=20, height=20/1.75)
+ggsave("results/ExtendedData3.eps", age_both, width=20, height=20/1.75)
+# source data
+results_multiv %>% full_join(data.frame(var=vars_multiv, label=c("Population", "Growth",
+                                              "Pop. Density", "Fragmentation",
+                                              "Connectivity","Social Index"))) %>% 
+  select(label, age, sex, beta, lci, uci) %>% 
+  fwrite("Source/Source_Data_ExtendedData3.csv")
+
 
 # MORTALITY PART OF PAPER ANALYSIS STARTS HERE
 mortality_cause<-mortality_cause %>% 
@@ -1007,6 +1072,18 @@ f2+theme(axis.text.x=element_blank(), axis.ticks.x = element_blank())
 ggsave("results/Figure3.pdf", f2+theme(axis.text.x=element_blank(), axis.ticks.x = element_blank()), 
        width=20, height=20/(10/6))
 
+figure_data %>% select(city_link, iso2, id, prop) %>% spread(id, prop) %>% 
+  rename(city=city_link, CMNN=`1cmnn`, Cancer=`2cancer`, NCDs=`3ncd`, Unintentional=`4accident`, Violence=`5violent`) %>% 
+  fwrite("Source/Source_Data_Figure3.csv")
+# same data for ED7 and ED5
+figure_data %>% select(city_link, iso2, id, prop) %>% spread(id, prop) %>% 
+  rename(city=city_link, CMNN=`1cmnn`, Cancer=`2cancer`, NCDs=`3ncd`, Unintentional=`4accident`, Violence=`5violent`) %>% 
+  fwrite("Source/Source_Data_ExtendedData7.csv")
+figure_data %>% select(city_link, iso2, id, prop) %>% spread(id, prop) %>% 
+  rename(city=city_link, CMNN=`1cmnn`, Cancer=`2cancer`, NCDs=`3ncd`, Unintentional=`4accident`, Violence=`5violent`) %>% 
+  fwrite("Source/Source_Data_ExtendedData5.csv")
+
+
 #age-adjusted version of figure 3
 aapm<-aapm %>% 
   mutate(city_link=ifelse(grepl("Tucuman", city_link), "Tucuman", city_link)) 
@@ -1121,7 +1198,11 @@ f2<-ggplot(figure_data, aes(x=as.factor(new_id), y=prop, fill=as.factor(id)))+
   }
 f2<-f2+theme(axis.text.x=element_blank(), axis.ticks.x = element_blank())
 f2
-ggsave("results/ExtendedData6.pdf", f2, width=20, height=20/1.43)
+ggsave("results/ExtendedData6.pdf", f2, width=20, height=20/(10/6))
+ggsave("results/ExtendedData6.eps", f2, width=20, height=20/(10/6))
+figure_data %>% select(city_link, iso2, id, prop) %>% spread(id, prop) %>% 
+  rename(city=city_link, CMNN=`1cmnn`, Cancer=`2cancer`, NCDs=`3ncd`, Unintentional=`4accident`, Violence=`5violent`) %>% 
+  fwrite("Source/Source_Data_ExtendedData6.csv")
 
 
 # FIGURE 4
@@ -1442,6 +1523,8 @@ pall<-arrangeGrob(grobs=plots[1:10], ncol=5)
 pall<-arrangeGrob(grobs=list(pall, legend), nrow=2, heights=c(15, 1))
 ggsave("results/ExtendedData8.pdf",pall, width=25, height=12.5, 
        units="in", scale=2, limitsize = F)
+ggsave("results/ExtendedData8.eps",pall, width=25, height=12.5, 
+       units="in", scale=2, limitsize = F)
 
 # age-adjusted version
 mortality<-aapm %>% select(SALID1, p_cmnn, p_cancer, p_ncd, p_accident, p_violent) %>% 
@@ -1552,6 +1635,8 @@ plots<-lapply(plots, function(p) p+guides(fill=F))
 pall<-arrangeGrob(grobs=plots[1:10], ncol=5)
 pall<-arrangeGrob(grobs=list(pall, legend), nrow=2, heights=c(15, 1))
 ggsave("results/ExtendedData9.pdf",pall, width=25, height=12.5, 
+       units="in", scale=2, limitsize = F)
+ggsave("results/ExtendedData9.eps",pall, width=25, height=12.5, 
        units="in", scale=2, limitsize = F)
 
 # Regression models
@@ -1676,10 +1761,12 @@ if (run_models==T){
        model_multiv_ageadj_restricted,
        models_growth_mortality,
        file="results/model_results_mortality.rdata")
+} else {
+  load("results/model_results_mortality.rdata")  
 }
 
 
-load("results/model_results_mortality.rdata")
+
 # extract coefficients for age-adjusted multivariable model
 # population will be re-scaled by log(1+increase)
 # in this case: 50% (log(1.5))
@@ -1830,7 +1917,24 @@ p<-ggplot(all, aes(x=id, y=beta)) +
   )
 p
 ggsave("results/ExtendedData10.pdf",p,  width=13.5, height=10)
-
+ggsave("results/ExtendedData10.eps",p,  width=13.5, height=10)
+all %>% select(-label) %>% 
+  full_join(data.frame(var=unique(all$var), label=vars_labels)) %>% 
+  full_join(data.frame(model=unique(all$model), model_label=c("Univariable\n", 
+                                                               "Univariable\n(adjusted for age)",
+                                                               "Univariable\n(adjusted for age and mortality)",
+                                                               "Multivariable\n(adjusted for age)", 
+                                                               "Multivariable\n(adjusted for age,\nrestricted by % ill-defined deaths)"))) %>% 
+  mutate(model_label=sub("\\\n", " ", model_label),
+         outcome_label=case_when(
+           outcome=="type1cmnn" ~ "CMNN",
+           outcome=="type2cancer" ~ "Cancer",
+           outcome=="type3cvd" ~ "CVD/NCDs\n(Ref.)",
+           outcome=="type4accident" ~ "Unintentional\nInjuries",
+           outcome=="type5violent" ~ "Violence\nInjuries",
+         )) %>% 
+  select(label, model_label, outcome_label, beta, lci, uci) %>% 
+  fwrite("Source/Source_Data_ExtendedData10.csv")
 
 # plot results of growth sens analysis: first LE
 models_growth_results<-models_growth %>% 
@@ -1940,7 +2044,22 @@ growth_mortality<-ggplot(coefs_growth, aes(x=id, y=beta)) +
 growth_mortality
 p<-arrangeGrob(grobs=list(growth_le, growth_mortality), ncol=2)
 ggsave("results/ExtendedData4.pdf", p, width=20, height=7.5)
+ggsave("results/ExtendedData4.eps", p, width=20, height=7.5)
 
+bind_rows(models_growth_results %>% 
+  mutate(outcome_label="LE", type=ifelse(term=="growth_pct", "concurrent", "previous")) %>% 
+  select(outcome_label, age, sex, type, beta, lci, uci) %>% 
+  filter(!is.na(beta)),
+  coefs_growth %>% 
+  mutate(outcome_label=case_when(
+    outcome=="type1cmnn" ~ "CMNN",
+    outcome=="type2cancer" ~ "Cancer",
+    outcome=="type3cvd" ~ "CVD/NCDs\n(Ref.)",
+    outcome=="type4accident" ~ "Unintentional\nInjuries",
+    outcome=="type5violent" ~ "Violence\nInjuries",
+  )) %>% 
+  select(outcome_label, type, beta, lci, uci)) %>% 
+  fwrite("Source/Source_Data_ExtendedData4.csv")
 
 # MAPS
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -2004,6 +2123,12 @@ maps_le[[2]]<-maps_le[[2]]+
 pall<-arrangeGrob(grobs=maps_le, ncol=2)
 ggsave("results/Figure2.pdf", pall, width=10, height=5)
 
+ale_median %>% filter(age==0) %>% 
+  ungroup() %>% 
+  select(iso2, city_link, sex, le) %>% 
+  rename(city=city_link) %>% 
+  fwrite("Source/Source_Data_Figure2.csv")
+
 maps_mortality<-map(cause_titles_coll, function(cause){
   temp<-shp2
   cause_name<-paste0("p_", cause)
@@ -2032,11 +2157,13 @@ maps_mortality<-map(cause_titles_coll, function(cause){
     #                       midpoint=median(shp2$men), name="LE in Men", n.breaks=7)+
     guides(color=guide_legend(), fill=guide_legend())+
     coord_sf(xlim = c(bbox$xmin, bbox$xmax), 
-             ylim = c(bbox$ymin, bbox$ymax), expand = expansion(mult=0.02))+
+             ylim = c(bbox$ymin, bbox$ymax), expand = expansion(mult=0))+
     labs(title=title)+
     theme_void() +
     theme(panel.background = element_rect(fill = "aliceblue"),
           plot.title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14),
+          legend.title = element_text(size=14, face="bold"),
           legend.position=c(0.1, 0.5))
 })
 maps_mortality[[5]]<-maps_mortality[[5]]+
@@ -2044,8 +2171,11 @@ maps_mortality[[5]]<-maps_mortality[[5]]+
   annotation_north_arrow(location = "bl", which_north = "true",
                          pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
                          style = north_arrow_fancy_orienteering)
-pall<-arrangeGrob(grobs=maps_mortality, ncol=5)
-ggsave("results/ExtendedData7.pdf", pall, width=22, height=4.5)
+pall<-arrangeGrob(grobs=maps_mortality, ncol=3)
+ggsave("results/ExtendedData7.pdf", pall, width=24/5*3, height=10)
+ggsave("results/ExtendedData7.eps", pall, width=24/5*3, height=10)
+
+
 
 ## supplement descriptive table
 # Descriptive table
@@ -2117,4 +2247,11 @@ p1<-ggtern(data = mortality_cause, aes(z = p_cmnn, x = p_ncds, y = p_injuries)) 
         legend.background = element_blank())
 p1
 ggsave("results/ExtendedData5.pdf", p1, width=7.5, height=7.5/1.33)
+ggsave("results/ExtendedData5.eps", p1, width=7.5, height=7.5/1.33)
+
+
+# finally, just making sure I am not disclosing anything I cant disclose in the source data
+files<-list.files("Source/", pattern="csv", full.names =T)
+map(files, function(file) fread(file) %>% colnames)
+map(files, function(file) fread(file) %>% head)
 
