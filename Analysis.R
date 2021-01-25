@@ -352,6 +352,59 @@ figure2<-arrangeGrob(grobs=list(figure2, legend), nrows=2,
 plot(figure2)
 ggsave("results/ExtendedData2.pdf", figure2, width=20, height=11.4)
 ggsave("results/ExtendedData2.eps", figure2, width=20, height=11.4)
+# save a simpler version for media
+figure2<-ale_median %>% 
+  filter(age==0) %>% 
+  group_by(age, sex) %>% 
+  group_map(~{
+    incometemp<-income_les %>% filter(sex==.y$sex, age==.y$age) %>% 
+      filter(!grepl("No income", country)) %>% arrange(le_country) %>% 
+      ungroup() %>% 
+      mutate(country=factor(country, levels=income_labels)) %>% 
+      mutate(hjust=ifelse(grepl("High-income", country), 0, 1),
+             x=ifelse(grepl("High-income", country), 1, 363))
+    .x<-.x %>% arrange(le) %>% 
+      ungroup() %>% 
+      mutate(id=row_number())
+    title<-paste0(ifelse(.y$age==0, "Life Expectancy at Birth in ", 
+                         paste0("Life Expectancy at Age ", .y$age, " in ")),
+                  ifelse(.y$sex=="M", "Men", "Women"))
+    title<-ifelse(.y$sex=="M", "Men", "Women")
+    ylim1<-pmin(ale_median %>% filter(age==0) %>% pull(lci) %>% min,
+                income_les %>% filter(age==0) %>% pull(le_country) %>% min)
+    ylim2<-pmax(ale_median %>% filter(age==0) %>% pull(uci) %>% max,
+                income_les %>% filter(age==0) %>% pull(le_country) %>% max)
+    ylim<-c(ylim1, ylim2)
+    ggplot(.x, aes(x=id, y=le)) +
+      #geom_errorbar(aes(ymin=lci, ymax=uci))+
+      geom_point(aes(fill=iso2), pch=21, color="black", size=4) +
+      geom_hline(data=incometemp, lty=2, size=2,
+                 aes(yintercept = le_country, color=country))+
+      geom_text(data=incometemp, vjust=1.1, size=8, 
+                aes(x=x, y=le_country, color=country,
+                    hjust=hjust, label=country))+
+      scale_x_continuous(breaks=.x$id, labels=.x$city_link, expand=c(0.01,0.01))+
+      scale_y_continuous(limits=ylim)+
+      scale_color_manual(values=brewer_pal(type="qual", palette=2)(5), name="")+
+      guides(color=F, fill=F)+
+      labs(title=title, y="Life Expectancy (years)", x="")+
+      theme_bw()+
+      theme(legend.position = "bottom",
+            axis.text.y=element_text(face="bold", size=14, color="black"),
+            axis.title=element_text(face="bold", size=16, color="black"),
+            panel.grid = element_blank(),
+            axis.ticks.x=element_blank(),
+            plot.title=element_text(face="bold", size=24, color="black"),
+            axis.text.x=element_text(size=3, angle=90, 
+                                     hjust=1, color="black"),
+            legend.text=element_text(size=20, color="black"),
+            legend.title=element_text(face="bold", size=20, color="black"))+
+      theme(axis.text.x=element_blank(), axis.ticks.x = element_blank())
+  })
+figure2<-arrangeGrob(grobs=list(figure2[[1]], figure2[[2]]), ncol=2)
+plot(figure2)
+ggsave("results/ExtendedData2_ALT.pdf", figure2, width=20, height=11.4)
+
 # source data
 ale_median %>% 
   filter(age==0) %>% 

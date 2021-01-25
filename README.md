@@ -1,6 +1,6 @@
 # SALURBAL_MS10
 Repository for the article _Life expectancy and mortality in 363 cities of Latin America: the SALURBAL project_.
-Article available at: PENDING
+Article available in Nature Medicine at https://www.nature.com/articles/s41591-020-01214-4
 
 **Files:**
 
