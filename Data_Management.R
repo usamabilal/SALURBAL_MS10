@@ -285,7 +285,7 @@ save(correction, file="analytic files/undercounting_correction_bysex.rdata")
 
 ## calculate undercounting irrespective of sex
 # getting ex on the open ended group for each country from UNDP WPP 2019
-dta_both<-(read_excel("../../SALURBAL Shared/SALURBAL_MS10/Other_Data/UNDP Life Tables/WPP2019_MORT_F17_1_ABRIDGED_LIFE_TABLE_BOTH_SEXES.xlsx", skip=16))
+dta_both<-(read_excel("Other_Data/UNDP Life Tables/WPP2019_MORT_F17_1_ABRIDGED_LIFE_TABLE_BOTH_SEXES.xlsx", skip=16))
 UNDP<-dta_both %>% 
   rename(country_name=`Region, subregion, country or area *`,
          age=`Age (x)`,
